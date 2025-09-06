@@ -174,7 +174,11 @@ dotnet tool install -g MetaNet --add-source .\bin\Release
 
 REM 3. Run the tool
 
-dotnet metanet
+metanet
+
+REM 4. Uninstall when needed
+
+dotnet tool uninstall -g MetaNet
 ```
 
 With these steps, MetaNet behaves as a globally installed dotnet tool, similar to how the application itself can install and run Snitch.
