@@ -64,7 +64,7 @@ class Program
 
         // Execute the tool in current repository
         AnsiConsole.Write(new Rule("snitch").RuleStyle("grey").Centered());
-        bool success = RunProcess("snitch", string.Empty);
+        bool success = RunProcessPassthrough("snitch", string.Empty);
 
         if (success is false)
         {
@@ -79,7 +79,8 @@ class Program
     private static void RunTodoSearch()
     {
         AnsiConsole.Write(new Rule("TODO search in repository").RuleStyle("grey").Centered());
-        bool success = RunProcess("git", "grep -n -i TODO");
+        // Use passthrough so git controls its own colors/formatting as if run directly in terminal
+        bool success = RunProcessPassthrough("git", "grep -n -i TODO");
 
         if (success is false)
         {
@@ -103,6 +104,7 @@ class Program
         return output.IndexOf(toolAlias, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
+    // TODO deprecated in favour of RunProcessPassthrough
     private static bool RunProcess(string fileName, string arguments)
     {
         try
@@ -146,6 +148,44 @@ class Program
 
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
+            process.WaitForExit();
+            return process.ExitCode == 0;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLineInterpolated($"[red]Error running process: {Escape(ex.Message)}[/]");
+            return false;
+        }
+    }
+
+    // Runs a process attached to current console without redirecting output, preserving original colors
+    private static bool RunProcessPassthrough(string fileName, string arguments)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = fileName,
+                Arguments = arguments,
+                UseShellExecute = false,
+                RedirectStandardOutput = false,
+                RedirectStandardError = false,
+                CreateNoWindow = false,
+            };
+
+            // Encourage colored output where tools honor FORCE_COLOR/TERM on Windows
+            if (!psi.Environment.ContainsKey("NO_COLOR"))
+            {
+                psi.Environment["FORCE_COLOR"] = "1";
+            }
+            // psi.Environment["GIT_PAGER"] = "cat"; // ensure git writes to console directly
+
+            using var process = new Process { StartInfo = psi };
+            if (!process.Start())
+            {
+                return false;
+            }
+
             process.WaitForExit();
             return process.ExitCode == 0;
         }
