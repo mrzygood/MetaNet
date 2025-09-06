@@ -1,0 +1,175 @@
+﻿using System.Diagnostics;
+using Spectre.Console;
+
+namespace MetaNet;
+
+class Program
+{
+    private const string SnitchChoice = "Run Snitch (detect outdated packages)";
+    private const string ExitChoice = "Exit";
+    
+    static int Main(string[] args)
+    {
+        AnsiConsole.MarkupLine("[bold dodgerblue2]MetaNet[/] - .NET project tools center");
+        while (true)
+        {
+            string choice = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("Select an action:")
+                    .PageSize(10)
+                    .AddChoices(
+                        SnitchChoice,
+                        ExitChoice));
+
+            switch (choice)
+            {
+                case SnitchChoice:
+                    RunSnitch();
+                    break;
+                case ExitChoice:
+                    return 0;
+            }
+        }
+    }
+
+    private static void RunSnitch()
+    {
+        const string toolCommand = "snitch";
+        const string packageId = "snitch";
+
+        if (!IsDotnetToolInstalled(toolCommand))
+        {
+            bool install = AnsiConsole.Confirm($"Snitch is not installed. Install [yellow]{packageId}[/] as a global tool now?", true);
+            if (install is false)
+            {
+                AnsiConsole.MarkupLine("[yellow]Skipped installation.[/]");
+                return;
+            }
+
+            bool ok = RunProcess("dotnet", $"tool install -g {packageId}");
+            if (!ok)
+            {
+                AnsiConsole.MarkupLine("[red]Failed to install Snitch. Please install it manually and try again.[/]");
+                return;
+            }
+
+            // On Windows, after a fresh install, the PATH might not be updated for the current process.
+            // We try to continue; 'dotnet snitch' should work regardless.
+        }
+
+        // Execute the tool in current repository
+        AnsiConsole.Write(new Rule("snitch").RuleStyle("grey").Centered());
+        bool success = RunProcess("snitch", string.Empty);
+
+        if (success is false)
+        {
+            AnsiConsole.MarkupLine("[red]Snitch finished with errors.[/]");
+        }
+        else
+        {
+            AnsiConsole.MarkupLine("[green]Snitch completed successfully.[/]");
+        }
+    }
+
+    private static bool IsDotnetToolInstalled(string toolAlias)
+    {
+        var output = CaptureProcessOutput("dotnet", "tool list -g");
+        if (output is null)
+        {
+            return false;
+        }
+
+        // Output contains a table; we do a simple contains check for alias or package name.
+        return output.IndexOf(toolAlias, StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private static bool RunProcess(string fileName, string arguments)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = fileName,
+                Arguments = arguments,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            };
+
+            using var process = new Process { StartInfo = psi };
+
+            var stdOut = new List<string>();
+            var stdErr = new List<string>();
+
+            process.OutputDataReceived += (_, e) =>
+            {
+                if (e.Data != null)
+                {
+                    stdOut.Add(e.Data);
+                    AnsiConsole.MarkupLineInterpolated($"[grey]{Escape(e.Data)}[/]");
+                }
+            };
+            process.ErrorDataReceived += (_, e) =>
+            {
+                if (e.Data != null)
+                {
+                    stdErr.Add(e.Data);
+                    AnsiConsole.MarkupLineInterpolated($"[red]{Escape(e.Data)}[/]");
+                }
+            };
+
+            if (!process.Start())
+            {
+                return false;
+            }
+
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            process.WaitForExit();
+            return process.ExitCode == 0;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLineInterpolated($"[red]Error running process: {Escape(ex.Message)}[/]");
+            return false;
+        }
+    }
+
+    private static string? CaptureProcessOutput(string fileName, string arguments)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = fileName,
+                Arguments = arguments,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            };
+
+            using var process = new Process { StartInfo = psi };
+            process.Start();
+            var output = process.StandardOutput.ReadToEnd();
+            var error = process.StandardError.ReadToEnd();
+            process.WaitForExit();
+
+            if (process.ExitCode != 0)
+            {
+                // include error for diagnostics
+                AnsiConsole.MarkupLineInterpolated($"[yellow]Command '{fileName} {arguments}' exited with code {process.ExitCode}. {Escape(error)}[/]");
+            }
+
+            return output + (string.IsNullOrWhiteSpace(error) ? string.Empty : ("\n" + error));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string Escape(string input)
+        => Markup.Escape(input);
+}
