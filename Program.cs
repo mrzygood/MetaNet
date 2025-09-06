@@ -6,6 +6,7 @@ namespace MetaNet;
 class Program
 {
     private const string SnitchChoice = "Run Snitch (detect outdated packages)";
+    private const string FindTodoChoice = "Find all files with TODO comments";
     private const string ExitChoice = "Exit";
     
     static int Main(string[] args)
@@ -19,12 +20,16 @@ class Program
                     .PageSize(10)
                     .AddChoices(
                         SnitchChoice,
+                        FindTodoChoice,
                         ExitChoice));
 
             switch (choice)
             {
                 case SnitchChoice:
                     RunSnitch();
+                    break;
+                case FindTodoChoice:
+                    RunTodoSearch();
                     break;
                 case ExitChoice:
                     return 0;
@@ -68,6 +73,21 @@ class Program
         else
         {
             AnsiConsole.MarkupLine("[green]Snitch completed successfully.[/]");
+        }
+    }
+    
+    private static void RunTodoSearch()
+    {
+        AnsiConsole.Write(new Rule("TODO search in repository").RuleStyle("grey").Centered());
+        bool success = RunProcess("git", "grep -n -i TODO");
+
+        if (success is false)
+        {
+            AnsiConsole.MarkupLine("[red]Finished with errors.[/]");
+        }
+        else
+        {
+            AnsiConsole.MarkupLine("[green]Completed successfully.[/]");
         }
     }
 

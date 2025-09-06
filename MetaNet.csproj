@@ -9,7 +9,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>metanet</ToolCommandName>
     <PackageId>MetaNet</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Authors>mrzygood</Authors>
     <Description>MetaNet - .NET project tools center</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

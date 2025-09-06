@@ -53,7 +53,7 @@ dotnet pack -c Release \
   /p:PackAsTool=true \
   /p:ToolCommandName=metanet \
   /p:PackageId=MetaNet \
-  /p:Version=0.1.0
+  /p:Version=0.1.1
 ```
 
 ## 3. Install the tool globally from a local package
@@ -175,10 +175,6 @@ dotnet tool install -g MetaNet --add-source .\bin\Release
 REM 3. Run the tool
 
 metanet
-
-REM 4. Uninstall when needed
-
-dotnet tool uninstall -g MetaNet
 ```
 
 With these steps, MetaNet behaves as a globally installed dotnet tool, similar to how the application itself can install and run Snitch.
